@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 
 import { AppThemeProvider, useAppTheme } from '@/theme/ThemeContext';
 
-import { setScreenReaderVoice } from '../../modules/screen-reader';
+import { resumeHeySmartAssist, setScreenReaderVoice } from '../../modules/screen-reader';
 
 // Keep the splash screen up until the font and saved settings are ready.
 SplashScreen.preventAutoHideAsync();
@@ -47,6 +47,11 @@ function AppStack() {
   useEffect(() => {
     setScreenReaderVoice(settings.voiceRate, settings.voicePitch);
   }, [settings.voiceRate, settings.voicePitch]);
+
+  // If the user had "Hey SmartAssist" on before the phone restarted, turn it back on.
+  useEffect(() => {
+    resumeHeySmartAssist();
+  }, []);
 
   if (!ready) {
     return null;

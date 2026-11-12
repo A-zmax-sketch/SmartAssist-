@@ -37,6 +37,11 @@ describe('voice-commands.json', () => {
     }
   });
 
+  test('wake words are written so they can be recognised', () => {
+    expect(voice.wakeWords.length).toBeGreaterThan(0);
+    voice.wakeWords.forEach((wake) => expect(normalize(wake)).toBe(wake));
+  });
+
   test('the default messenger and every fixed messenger are known', () => {
     const known = Object.keys(voice.messengers);
     expect(known).toContain(voice.defaultMessenger);

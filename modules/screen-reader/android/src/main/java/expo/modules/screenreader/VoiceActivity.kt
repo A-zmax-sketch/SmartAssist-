@@ -69,6 +69,7 @@ class VoiceActivity : Activity() {
   }
 
   private fun startListening() {
+    WakeWordService.yieldMicrophone() // only one listener can use the microphone at a time
     if (!SpeechRecognizer.isRecognitionAvailable(this)) {
       deliver(VoiceResult.NothingHeard)
       return

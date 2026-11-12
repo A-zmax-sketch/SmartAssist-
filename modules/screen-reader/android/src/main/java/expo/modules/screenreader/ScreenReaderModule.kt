@@ -47,6 +47,20 @@ class ScreenReaderModule : Module() {
       true
     }
 
+    /**
+     * Starts "Hey SmartAssist" listening. Only works while SmartAssist is on
+     * screen and has the microphone permission. False if Android refused.
+     */
+    Function("startWakeWord") { WakeWordService.start(context) }
+
+    Function("stopWakeWord") { WakeWordService.stop(context) }
+
+    /** True while "Hey SmartAssist" is listening. */
+    Function("isWakeWordOn") { WakeWordService.isRunning }
+
+    /** True if the user turned "Hey SmartAssist" on, even if the phone restarted since. */
+    Function("isWakeWordWanted") { WakeWordService.isWanted(context) }
+
     /** Carries out typed words as a voice command, for testing without a microphone. */
     Function("carryOut") { words: String ->
       val service = SmartAssistReaderService.running ?: return@Function false

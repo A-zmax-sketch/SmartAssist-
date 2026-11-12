@@ -1,6 +1,6 @@
 import { requireOptionalNativeModule } from 'expo';
 import { useCallback, useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 
 /**
  * SmartAssist's Android screen reader, as seen from JavaScript.
@@ -16,6 +16,10 @@ type ScreenReaderNative = {
   setVoice(rate: number, pitch: number): void;
   listen(): boolean;
   carryOut(words: string): boolean;
+  startWakeWord(): boolean;
+  stopWakeWord(): void;
+  isWakeWordOn(): boolean;
+  isWakeWordWanted(): boolean;
 };
 
 const native = requireOptionalNativeModule<ScreenReaderNative>('ScreenReader');
@@ -50,6 +54,67 @@ export function listenForCommand(): boolean {
 /** Carries out typed words as a voice command. For testing without a microphone. */
 export function carryOutCommand(words: string): boolean {
   return native?.carryOut(words) ?? false;
+}
+
+// ---- "Hey SmartAssist" --------------------------------------------------
+
+/**
+ * Starts listening for "Hey SmartAssist". Asks for the microphone (and, on
+ * Android 13+, notifications) first. Must be called while SmartAssist is
+ * on screen. Returns false if it couldn't start.
+ */
+export async function turnOnHeySmartAssist(): Promise<boolean> {
+  if (!native || Platform.OS !== 'android') return false;
+  const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+  if (mic !== PermissionsAndroid.RESULTS.GRANTED) return false;
+  if (Number(Platform.Version) >= 33) {
+    // Without it Android hides the "listening" notification; listening still works.
+    await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+  }
+  return native.startWakeWord();
+}
+
+export function turnOffHeySmartAssist(): void {
+  native?.stopWakeWord();
+}
+
+export function isHeySmartAssistOn(): boolean {
+  return native?.isWakeWordOn() ?? false;
+}
+
+/**
+ * Android won't start "Hey SmartAssist" by itself after the phone restarts,
+ * so the app turns it back on when it is opened, if the user had it on.
+ */
+export function resumeHeySmartAssist(): void {
+  if (native?.isWakeWordWanted() && !native.isWakeWordOn()) {
+    native.startWakeWord();
+  }
+}
+
+/** Whether "Hey SmartAssist" is listening, with buttons' actions to change it. */
+export function useHeySmartAssist() {
+  const [isOn, setIsOn] = useState(isHeySmartAssistOn);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (appState) => {
+      if (appState === 'active') setIsOn(isHeySmartAssistOn());
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const turnOn = useCallback(async () => {
+    const started = await turnOnHeySmartAssist();
+    setIsOn(started);
+    return started;
+  }, []);
+
+  const turnOff = useCallback(() => {
+    turnOffHeySmartAssist();
+    setIsOn(false);
+  }, []);
+
+  return { isOn, turnOn, turnOff };
 }
 
 /**

@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import ScreenReadingScreen from '@/app/screen-reading';
-import { ANDROID_HOW_TO_USE, ANDROID_STEPS, IPHONE_STEPS } from '@/services/screenReadingGuide';
+import { ANDROID_HOW_TO_USE, ANDROID_STEPS, HEY_SMARTASSIST_FAILED, IPHONE_STEPS } from '@/services/screenReadingGuide';
 import { AppThemeProvider } from '@/theme/ThemeContext';
 
 import { openScreenReaderSettings } from '../../modules/screen-reader';
@@ -20,10 +20,12 @@ jest.mock('expo-router', () => ({
   useFocusEffect: jest.fn(),
 }));
 const mockIsOn = jest.fn(() => false);
+const mockTurnOnHey = jest.fn(() => Promise.resolve(true));
 jest.mock('../../modules/screen-reader', () => ({
   screenReaderAvailable: true,
   isScreenReaderOn: () => mockIsOn(),
   useScreenReaderOn: () => ({ isOn: mockIsOn(), recheck: jest.fn() }),
+  useHeySmartAssist: () => ({ isOn: false, turnOn: mockTurnOnHey, turnOff: jest.fn() }),
   openScreenReaderSettings: jest.fn(),
   setScreenReaderVoice: jest.fn(),
 }));
@@ -86,4 +88,17 @@ test('Android, switched on: explains how to use it instead of the steps', async 
 
   expect(screen.getByText(ANDROID_HOW_TO_USE)).toBeTruthy();
   expect(screen.queryByText(/Step 1 of/)).toBeNull();
+});
+
+test('Android, switched on: "Hey SmartAssist" can be turned on, and failure is explained', async () => {
+  mockIsOn.mockReturnValue(true);
+  await showScreen('android');
+
+  await fireEvent.press(screen.getByRole('button', { name: 'Turn on “Hey SmartAssist”' }));
+  expect(mockTurnOnHey).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(HEY_SMARTASSIST_FAILED)).toBeNull();
+
+  mockTurnOnHey.mockResolvedValueOnce(false); // e.g. microphone not allowed
+  await fireEvent.press(screen.getByRole('button', { name: 'Turn on “Hey SmartAssist”' }));
+  expect(await screen.findByText(HEY_SMARTASSIST_FAILED)).toBeTruthy();
 });

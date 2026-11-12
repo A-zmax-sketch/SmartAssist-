@@ -75,6 +75,7 @@
     "sms": ["text", "sms", "text message"]
   },
   "defaultMessenger": "whatsapp",
+  "wakeWords": ["hey smartassist", "hey smart assist", "hey smart assistant", "hi smart assist", "okay smart assist", "ok smart assist"],
   "yesWords": ["yes", "yeah", "yep", "yes please", "sure", "okay", "ok", "send it", "send", "do it", "go ahead", "call", "call them", "correct", "that's right"],
   "noWords": ["no", "nope", "cancel", "stop", "don't", "do not", "wait", "not"],
   "replies": {

@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
@@ -41,9 +43,10 @@ class SmartAssistReaderService : AccessibilityService() {
     val newSpeaker = ScreenSpeaker(this) { state -> controls?.show(state) }
     speaker = newSpeaker
     Log.i(LOG_TAG, "Screen reader started")
-    // Android restarts this service when SmartAssist gains a permission (e.g. Contacts),
-    // sometimes halfway through a command. So the assistant always talks through
-    // whichever reader is running now, not necessarily this one.
+    // Android can restart this service at any time (when SmartAssist gains a
+    // permission, is updated, or a testing tool connects), sometimes halfway
+    // through a command. So the assistant always talks through whichever
+    // reader is running now, not necessarily this one.
     val newAssistant = VoiceAssistant(
       this,
       speak = { text, onDone -> (running ?: this).say(text, onDone) },
@@ -61,6 +64,18 @@ class SmartAssistReaderService : AccessibilityService() {
     ).also { it.attach() }
     running = this
     listenForTestCommands()
+    // Started while SmartAssist is open? Then hide straight away, without waiting for a new screen.
+    Handler(Looper.getMainLooper()).postDelayed({ updatePanelVisibility(null) }, START_CHECK_MS)
+  }
+
+  /**
+   * Hides the floating buttons while SmartAssist itself is in front or the
+   * Listening card is open. "In front" is the app Android says is active;
+   * keyboards and the notification shade send events too, but never become it.
+   */
+  private fun updatePanelVisibility(eventApp: String?) {
+    val front = rootInActiveWindow?.packageName?.toString() ?: eventApp
+    controls?.setHidden(front == packageName || VoiceActivity.isOpen)
   }
 
   /**
@@ -87,8 +102,12 @@ class SmartAssistReaderService : AccessibilityService() {
   /** Says one thing, such as the assistant's answer. Not screen reading, so a new screen doesn't stop it. */
   fun say(text: String, onDone: (() -> Unit)?) {
     screenBeingRead = null
+    WakeWordService.yieldMicrophone() // so "Hey SmartAssist" doesn't hear SmartAssist talking
     speaker?.read(listOf(text), onDone)
   }
+
+  /** True while SmartAssist is speaking (reading the screen or answering). */
+  fun isTalking(): Boolean = speaker?.state == ReaderState.PLAYING
 
   /** Reads the app on screen: a one-sentence summary, then everything on it, top to bottom. */
   fun readScreen() {
@@ -108,6 +127,7 @@ class SmartAssistReaderService : AccessibilityService() {
       spoken.addAll(lines.map { it.text })
       spoken.add(rules.phrase("endOfScreen"))
     }
+    WakeWordService.yieldMicrophone()
     speaker?.read(spoken)
   }
 
@@ -137,7 +157,7 @@ class SmartAssistReaderService : AccessibilityService() {
 
     // SmartAssist has its own big buttons and voice, so the floating ones would only get in the way.
     // Also hidden while the Listening card is open, even under Android's permission box.
-    controls?.setHidden(app == packageName || VoiceActivity.isOpen)
+    updatePanelVisibility(app)
 
     val reading = speaker?.state != ReaderState.IDLE
     if (reading && rules?.stopWhenScreenChanges == true && screenBeingRead != null && screen != screenBeingRead) {
@@ -167,6 +187,9 @@ class SmartAssistReaderService : AccessibilityService() {
 
   companion object {
     private const val LOG_TAG = "SmartAssistReader"
+
+    /** How long after starting to check which app is in front (Android needs a moment). */
+    private const val START_CHECK_MS = 500L
 
     /** The screen reader while it is switched on, so the app can talk to it. */
     var running: SmartAssistReaderService? = null

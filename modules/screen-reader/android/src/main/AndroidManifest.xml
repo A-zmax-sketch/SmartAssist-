@@ -7,6 +7,10 @@
   <uses-permission android:name="android.permission.READ_CONTACTS" />  <!-- "send a message to Mum" -->
   <uses-permission android:name="android.permission.SEND_SMS" />       <!-- "text David saying…" -->
   <uses-permission android:name="android.permission.CALL_PHONE" />     <!-- "call Mum" -->
+  <!-- "Hey SmartAssist": listening in the background needs a foreground service and its notification. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
   <!-- Apps the assistant may look for: any app with a home-screen icon, WhatsApp, the phone's speech recogniser and voice. -->
   <queries>
@@ -53,5 +57,11 @@
       android:excludeFromRecents="true"
       android:taskAffinity=""
       android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+    <!-- "Hey SmartAssist": listens all the time, with a notification, once turned on in the app. -->
+    <service
+      android:name="expo.modules.screenreader.WakeWordService"
+      android:exported="false"
+      android:foregroundServiceType="microphone" />
   </application>
 </manifest>

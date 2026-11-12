@@ -19,6 +19,9 @@ class VoiceCommands(json: JSONObject) {
   private val patterns: List<Pattern>
   private val messengers: Map<String, List<String>>
   val defaultMessenger: String = json.getString("defaultMessenger")
+
+  /** What starts "Hey SmartAssist" listening, e.g. "hey smart assist". */
+  val wakeWords: List<String> = json.getJSONArray("wakeWords").toList()
   private val yesWords = json.getJSONArray("yesWords").toList()
   private val noWords = json.getJSONArray("noWords").toList()
   private val replies = json.getJSONObject("replies")

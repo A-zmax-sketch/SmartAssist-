@@ -22,6 +22,18 @@ export const ANDROID_RESTRICTED_TIP =
 export const ANDROID_HOW_TO_USE =
   'Screen reading is on. In any app, tap the yellow Read screen button. While it reads, you can tap Pause, Next or Stop. If the button is in the way, drag it somewhere else. It hides itself while SmartAssist is open.';
 
+/** Android, once it is on: how to give voice commands. */
+export const VOICE_HOW_TO_USE =
+  'You can also talk to SmartAssist. Tap Speak on the yellow button and say a command, like “Open WhatsApp” or “Send a message to Mum saying I’m on my way”. SmartAssist always asks you before it sends a message or makes a call.';
+
+/** Explains "Hey SmartAssist" before the user turns it on. */
+export const HEY_SMARTASSIST_INFO =
+  'Turn on “Hey SmartAssist” to give commands without touching the phone. Say “Hey SmartAssist”, then your command. SmartAssist then listens all the time. This uses more battery, and a notification shows while it listens.';
+
+/** Shown if Android refused to start "Hey SmartAssist". */
+export const HEY_SMARTASSIST_FAILED =
+  'SmartAssist could not start listening. Check that it is allowed to use the microphone, then try again.';
+
 /**
  * iPhone: Apple does not let apps see other apps’ screens, so SmartAssist
  * helps the user turn on Apple’s own Speak Screen and its floating button.

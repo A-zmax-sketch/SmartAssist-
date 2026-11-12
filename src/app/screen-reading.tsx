@@ -9,14 +9,22 @@ import {
   ANDROID_HOW_TO_USE,
   ANDROID_RESTRICTED_TIP,
   ANDROID_STEPS,
+  HEY_SMARTASSIST_FAILED,
+  HEY_SMARTASSIST_INFO,
   IPHONE_STEPS,
   UNAVAILABLE_MESSAGE,
+  VOICE_HOW_TO_USE,
 } from '@/services/screenReadingGuide';
 import { speak, stopSpeaking } from '@/services/speech';
-import { BORDER_WIDTH, RADIUS } from '@/theme/layout';
+import { BORDER_WIDTH, RADIUS, TARGET_GAP } from '@/theme/layout';
 import { useAppTheme } from '@/theme/ThemeContext';
 
-import { openScreenReaderSettings, screenReaderAvailable, useScreenReaderOn } from '../../modules/screen-reader';
+import {
+  openScreenReaderSettings,
+  screenReaderAvailable,
+  useHeySmartAssist,
+  useScreenReaderOn,
+} from '../../modules/screen-reader';
 
 /**
  * Read My Screen: sets up reading other apps' screens. Owner: Kosisochukwu.
@@ -32,6 +40,8 @@ export default function ScreenReadingScreen() {
   const steps = isIphone ? IPHONE_STEPS : ANDROID_STEPS;
   const [step, setStep] = useState(0);
   const { isOn } = useScreenReaderOn();
+  const hey = useHeySmartAssist();
+  const [heyNotice, setHeyNotice] = useState('');
 
   const say = useCallback(
     (text: string) => void speak(text, { rate: settings.voiceRate, pitch: settings.voicePitch }),
@@ -64,10 +74,42 @@ export default function ScreenReadingScreen() {
   }
 
   if (!isIphone && isOn) {
+    const toggleHeySmartAssist = async () => {
+      if (hey.isOn) {
+        hey.turnOff();
+        setHeyNotice('');
+      } else {
+        setHeyNotice((await hey.turnOn()) ? '' : HEY_SMARTASSIST_FAILED);
+      }
+    };
+
     return (
       <Screen title="Read My Screen">
         <AppText>{ANDROID_HOW_TO_USE}</AppText>
-        <BigButton label="Read this aloud" icon="volume-high" onPress={() => say(ANDROID_HOW_TO_USE)} />
+        <BigButton
+          label="Read this aloud"
+          icon="volume-high"
+          onPress={() => say(`${ANDROID_HOW_TO_USE} ${VOICE_HOW_TO_USE}`)}
+        />
+
+        <View style={[styles.stepBox, styles.section, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <AppText variant="button">Voice commands</AppText>
+          <AppText>{VOICE_HOW_TO_USE}</AppText>
+          <AppText>{HEY_SMARTASSIST_INFO}</AppText>
+          <BigButton
+            label={hey.isOn ? 'Turn off “Hey SmartAssist”' : 'Turn on “Hey SmartAssist”'}
+            icon={hey.isOn ? 'mic-off' : 'mic'}
+            variant={hey.isOn ? 'secondary' : 'primary'}
+            hint={hey.isOn ? 'SmartAssist stops listening all the time.' : 'SmartAssist listens all the time for “Hey SmartAssist”.'}
+            onPress={toggleHeySmartAssist}
+          />
+          {heyNotice !== '' && (
+            <AppText color={colors.danger} accessibilityLiveRegion="polite">
+              {heyNotice}
+            </AppText>
+          )}
+        </View>
+
         <BigButton
           label="Turn off screen reading"
           icon="settings"
@@ -122,5 +164,8 @@ const styles = StyleSheet.create({
     borderWidth: BORDER_WIDTH,
     borderRadius: RADIUS,
     padding: 16,
+  },
+  section: {
+    gap: TARGET_GAP,
   },
 });
