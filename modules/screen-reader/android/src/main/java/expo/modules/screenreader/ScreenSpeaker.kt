@@ -86,10 +86,17 @@ class ScreenSpeaker(
     })
   }
 
-  /** Reads `newLines` from the first one. */
-  fun read(newLines: List<String>) {
+  /** Runs once the last line has been spoken (not if Pause, Next or Stop interrupt it). */
+  private var onDone: (() -> Unit)? = null
+
+  /**
+   * Reads `newLines` from the first one. `onDone` runs when it has finished
+   * speaking, for example to start listening for "yes" only after a question.
+   */
+  fun read(newLines: List<String>, onDone: (() -> Unit)? = null) {
     lines = newLines
     index = 0
+    this.onDone = onDone
     startRun()
   }
 
@@ -118,6 +125,7 @@ class ScreenSpeaker(
     run += 1
     tts?.stop()
     index = 0
+    onDone = null
     state = ReaderState.IDLE
   }
 
@@ -137,6 +145,9 @@ class ScreenSpeaker(
     if (index >= lines.size) {
       state = ReaderState.IDLE
       index = 0
+      val finished = onDone
+      onDone = null
+      finished?.invoke()
       return
     }
     val voice = tts ?: return

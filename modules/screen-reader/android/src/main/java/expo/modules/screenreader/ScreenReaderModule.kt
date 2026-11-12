@@ -39,5 +39,19 @@ class ScreenReaderModule : Module() {
     Function("setVoice") { rate: Double, pitch: Double ->
       VoicePrefs.save(context, rate.toFloat(), pitch.toFloat())
     }
+
+    /** Opens the Listening card for a voice command. False if screen reading is switched off. */
+    Function("listen") {
+      val service = SmartAssistReaderService.running ?: return@Function false
+      service.listen()
+      true
+    }
+
+    /** Carries out typed words as a voice command, for testing without a microphone. */
+    Function("carryOut") { words: String ->
+      val service = SmartAssistReaderService.running ?: return@Function false
+      service.carryOut(words)
+      true
+    }
   }
 }

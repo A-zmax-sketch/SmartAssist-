@@ -4,6 +4,8 @@
   - canRetrieveWindowContent: see the text and buttons of the app on screen.
   - typeWindowStateChanged: know when a new screen opens, to hide its buttons
     inside SmartAssist and stop reading a screen the user has left.
+  - flagReportViewIds: find buttons by their id, e.g. WhatsApp's Send button
+    when a voice command sends a message (only after the user says "yes").
   - isAccessibilityTool: tells Android this is an accessibility tool for
     people with disabilities.
   It does not ask for Android's own accessibility button: SmartAssist shows its
@@ -13,7 +15,7 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
   android:accessibilityEventTypes="typeWindowStateChanged"
   android:accessibilityFeedbackType="feedbackSpoken"
-  android:accessibilityFlags="flagIncludeNotImportantViews"
+  android:accessibilityFlags="flagIncludeNotImportantViews|flagReportViewIds"
   android:canRetrieveWindowContent="true"
   android:description="@string/screen_reader_description"
   android:isAccessibilityTool="true"

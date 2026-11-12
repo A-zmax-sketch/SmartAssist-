@@ -1,8 +1,34 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    What the voice assistant needs. Android asks the user for each one the
+    first time it is used (the Listening card asks), never all at once.
+  -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />  <!-- hearing commands -->
+  <uses-permission android:name="android.permission.READ_CONTACTS" />  <!-- "send a message to Mum" -->
+  <uses-permission android:name="android.permission.SEND_SMS" />       <!-- "text David saying…" -->
+  <uses-permission android:name="android.permission.CALL_PHONE" />     <!-- "call Mum" -->
+
+  <!-- Apps the assistant may look for: any app with a home-screen icon, WhatsApp, the phone's speech recogniser and voice. -->
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.MAIN" />
+      <category android:name="android.intent.category.LAUNCHER" />
+    </intent>
+    <intent>
+      <action android:name="android.speech.RecognitionService" />
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.TTS_SERVICE" />
+    </intent>
+    <package android:name="com.whatsapp" />
+    <package android:name="com.whatsapp.w4b" />
+  </queries>
+
   <application>
     <!--
-      SmartAssist's screen reader. Android only lets it run after the user
-      switches it on in Settings > Accessibility; that switch is the permission.
+      SmartAssist's screen reader and voice assistant. Android only lets it run
+      after the user switches it on in Settings > Accessibility; that switch is
+      the permission.
     -->
     <service
       android:name="expo.modules.screenreader.SmartAssistReaderService"
@@ -16,5 +42,16 @@
         android:name="android.accessibilityservice"
         android:resource="@xml/smartassist_reader_service" />
     </service>
+
+    <!--
+      The "Listening…" card shown over any app while the assistant listens.
+      It closes itself; no noHistory, or Android's permission box would close it.
+    -->
+    <activity
+      android:name="expo.modules.screenreader.VoiceActivity"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:taskAffinity=""
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
   </application>
 </manifest>

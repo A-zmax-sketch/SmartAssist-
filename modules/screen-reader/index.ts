@@ -14,6 +14,8 @@ type ScreenReaderNative = {
   isEnabled(): boolean;
   openSettings(): void;
   setVoice(rate: number, pitch: number): void;
+  listen(): boolean;
+  carryOut(words: string): boolean;
 };
 
 const native = requireOptionalNativeModule<ScreenReaderNative>('ScreenReader');
@@ -34,6 +36,20 @@ export function openScreenReaderSettings(): void {
 /** Makes the screen reader use the same speed and pitch as the app. */
 export function setScreenReaderVoice(rate: number, pitch: number): void {
   native?.setVoice(rate, pitch);
+}
+
+/**
+ * Opens the "Listening…" card and carries out the voice command the user says
+ * ("open WhatsApp", "call Mum"…). Returns false if screen reading is off or
+ * this isn't an Android build with the screen reader.
+ */
+export function listenForCommand(): boolean {
+  return native?.listen() ?? false;
+}
+
+/** Carries out typed words as a voice command. For testing without a microphone. */
+export function carryOutCommand(words: string): boolean {
+  return native?.carryOut(words) ?? false;
 }
 
 /**

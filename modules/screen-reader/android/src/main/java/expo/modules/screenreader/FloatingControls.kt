@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
@@ -18,8 +19,9 @@ import kotlin.math.abs
 
 /**
  * The yellow buttons that float over every app while the screen reader is on.
- * Collapsed it is one "Read screen" button; while reading it shows Pause (or
- * Continue), Next and Stop. Drag it to move it; it remembers where it was left.
+ * Collapsed it shows "Read screen" and "Speak" (voice commands); while
+ * talking it shows Pause (or Continue), Next and Stop. Drag it to move it;
+ * it remembers where it was left.
  *
  * Colours and sizes follow SmartAssist's High-contrast theme: yellow
  * #FFD600 on black, buttons at least 64 dp tall, 22 sp bold words.
@@ -27,6 +29,7 @@ import kotlin.math.abs
 class FloatingControls(
   private val context: Context,
   private val onRead: () -> Unit,
+  private val onSpeak: () -> Unit,
   private val onPause: () -> Unit,
   private val onContinue: () -> Unit,
   private val onNext: () -> Unit,
@@ -50,11 +53,12 @@ class FloatingControls(
     background = rounded(Color.BLACK, Color.parseColor(YELLOW))
   }
   private val readButton = bigButton("Read screen", android.R.drawable.ic_media_play) { onRead() }
+  private val speakButton = bigButton("Speak", android.R.drawable.ic_btn_speak_now) { onSpeak() }
   private val pauseButton = bigButton("Pause", android.R.drawable.ic_media_pause) { onPause() }
   private val continueButton = bigButton("Continue", android.R.drawable.ic_media_play) { onContinue() }
   private val nextButton = bigButton("Next", android.R.drawable.ic_media_next) { onNext() }
   private val stopButton = bigButton("Stop", android.R.drawable.ic_menu_close_clear_cancel) { onStop() }
-  private val buttons = listOf(readButton, pauseButton, continueButton, nextButton, stopButton)
+  private val buttons = listOf(readButton, speakButton, pauseButton, continueButton, nextButton, stopButton)
 
   private var attached = false
   private var dragStartX = 0
@@ -87,6 +91,7 @@ class FloatingControls(
   /** Shows the buttons that make sense right now. */
   fun show(state: ReaderState) {
     readButton.visibility = visibleIf(state == ReaderState.IDLE)
+    speakButton.visibility = visibleIf(state == ReaderState.IDLE)
     pauseButton.visibility = visibleIf(state == ReaderState.PLAYING)
     continueButton.visibility = visibleIf(state == ReaderState.PAUSED)
     nextButton.visibility = visibleIf(state != ReaderState.IDLE)
@@ -159,7 +164,10 @@ class FloatingControls(
       LinearLayout.LayoutParams.WRAP_CONTENT,
       LinearLayout.LayoutParams.WRAP_CONTENT,
     ).apply { setMargins(0, dp(4), 0, dp(4)) }
-    setOnClickListener { onPress() }
+    setOnClickListener {
+      Log.i(LOG_TAG, "Tapped: $label")
+      onPress()
+    }
   }
 
   private fun rounded(fill: Int, stroke: Int) = GradientDrawable().apply {
@@ -176,6 +184,7 @@ class FloatingControls(
 
     /** How the panel identifies itself to Android (see DragPanel.getAccessibilityClassName). */
     const val PANEL_CLASS_NAME = "expo.modules.screenreader.FloatingControls"
+    private const val LOG_TAG = "SmartAssistReader"
     private const val PREFS_FILE = "smartassist_screen_reader"
     private const val KEY_X = "panelX"
     private const val KEY_Y = "panelY"

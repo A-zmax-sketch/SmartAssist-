@@ -1,6 +1,12 @@
 package expo.modules.screenreader
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
+import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
@@ -17,6 +23,8 @@ class SmartAssistReaderService : AccessibilityService() {
   private var speaker: ScreenSpeaker? = null
   private var controls: FloatingControls? = null
   private var screenText: ScreenText? = null
+  private var assistant: VoiceAssistant? = null
+  private var testReceiver: BroadcastReceiver? = null
 
   /** The app screen in front right now, e.g. "com.android.settings/.Settings". */
   private var currentScreen: String? = null
@@ -32,18 +40,58 @@ class SmartAssistReaderService : AccessibilityService() {
 
     val newSpeaker = ScreenSpeaker(this) { state -> controls?.show(state) }
     speaker = newSpeaker
+    Log.i(LOG_TAG, "Screen reader started")
+    // Android restarts this service when SmartAssist gains a permission (e.g. Contacts),
+    // sometimes halfway through a command. So the assistant always talks through
+    // whichever reader is running now, not necessarily this one.
+    val newAssistant = VoiceAssistant(
+      this,
+      speak = { text, onDone -> (running ?: this).say(text, onDone) },
+      readScreen = { (running ?: this).readScreen() },
+    )
+    assistant = newAssistant
     controls = FloatingControls(
       context = this,
       onRead = ::readScreen,
+      onSpeak = newAssistant::listen,
       onPause = newSpeaker::pause,
       onContinue = newSpeaker::resume,
       onNext = newSpeaker::next,
       onStop = newSpeaker::stop,
     ).also { it.attach() }
+    running = this
+    listenForTestCommands()
+  }
+
+  /**
+   * Development builds only: lets a developer type a voice command from the
+   * Mac instead of speaking it:
+   *   adb shell am broadcast -a com.classiscrimson.smartassist.TEST_COMMAND --es words "open settings"
+   */
+  private fun listenForTestCommands() {
+    if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+    val receiver = object : BroadcastReceiver() {
+      override fun onReceive(context: Context, intent: Intent) {
+        intent.getStringExtra("words")?.let { carryOut(it) }
+      }
+    }
+    val filter = IntentFilter("$packageName.TEST_COMMAND")
+    if (Build.VERSION.SDK_INT >= 33) {
+      registerReceiver(receiver, filter, RECEIVER_EXPORTED)
+    } else {
+      registerReceiver(receiver, filter)
+    }
+    testReceiver = receiver
+  }
+
+  /** Says one thing, such as the assistant's answer. Not screen reading, so a new screen doesn't stop it. */
+  fun say(text: String, onDone: (() -> Unit)?) {
+    screenBeingRead = null
+    speaker?.read(listOf(text), onDone)
   }
 
   /** Reads the app on screen: a one-sentence summary, then everything on it, top to bottom. */
-  private fun readScreen() {
+  fun readScreen() {
     val text = screenText ?: return
     val rules = rules ?: return
     val root = rootInActiveWindow
@@ -88,7 +136,8 @@ class SmartAssistReaderService : AccessibilityService() {
     Log.d(LOG_TAG, "Screen changed: $screen")
 
     // SmartAssist has its own big buttons and voice, so the floating ones would only get in the way.
-    controls?.setHidden(app == packageName)
+    // Also hidden while the Listening card is open, even under Android's permission box.
+    controls?.setHidden(app == packageName || VoiceActivity.isOpen)
 
     val reading = speaker?.state != ReaderState.IDLE
     if (reading && rules?.stopWhenScreenChanges == true && screenBeingRead != null && screen != screenBeingRead) {
@@ -102,12 +151,25 @@ class SmartAssistReaderService : AccessibilityService() {
   }
 
   override fun onDestroy() {
+    Log.i(LOG_TAG, "Screen reader stopped")
+    if (running === this) running = null
+    testReceiver?.let { unregisterReceiver(it) }
     controls?.detach()
     speaker?.shutdown()
     super.onDestroy()
   }
 
-  private companion object {
-    const val LOG_TAG = "SmartAssistReader"
+  /** Listens for a voice command, as if Speak were tapped. Used by the app's own mic button. */
+  fun listen() = assistant?.listen()
+
+  /** Carries out typed words as a voice command. For testing without a microphone. */
+  fun carryOut(words: String) = assistant?.carryOut(words)
+
+  companion object {
+    private const val LOG_TAG = "SmartAssistReader"
+
+    /** The screen reader while it is switched on, so the app can talk to it. */
+    var running: SmartAssistReaderService? = null
+      private set
   }
 }

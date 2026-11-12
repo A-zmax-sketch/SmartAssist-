@@ -1,0 +1,106 @@
+{
+  "about": "SmartAssist's voice commands on Android. Each command has patterns: the words people say, with {placeholders} for the parts that change. Patterns are tried from top to bottom and the first one that fits wins, so put longer patterns before shorter ones. Write patterns in lower case, without punctuation. Each command's examples must match one of its patterns (src/__tests__/voiceCommands.test.ts checks this). Replies are what SmartAssist says; keep their {placeholders}. Rebuild the app (npx expo run:android) after a change.",
+  "commands": [
+    {
+      "action": "sendMessage",
+      "patterns": [
+        "send a message to {contact} on {messenger} saying {message}",
+        "send a message to {contact} saying {message}",
+        "send a {messenger} message to {contact} saying {message}",
+        "send a {messenger} to {contact} saying {message}",
+        "send {contact} a message saying {message}",
+        "message {contact} on {messenger} saying {message}",
+        "message {contact} saying {message}",
+        "tell {contact} that {message}"
+      ],
+      "examples": [
+        "Send a message to Mum saying I'm on my way",
+        "send a WhatsApp message to Tunde saying call me later",
+        "tell Aunty Ngozi that the meeting is at five"
+      ]
+    },
+    {
+      "action": "sendMessage",
+      "messenger": "sms",
+      "patterns": ["send a text to {contact} saying {message}", "text {contact} saying {message}"],
+      "examples": ["text David saying I am home"]
+    },
+    {
+      "action": "call",
+      "patterns": ["call {contact}", "phone {contact}", "ring {contact}"],
+      "examples": ["call Mum", "phone Grace Okafor"]
+    },
+    {
+      "action": "readScreen",
+      "patterns": [
+        "read the screen",
+        "read my screen",
+        "read screen",
+        "read this",
+        "read this page",
+        "what's on the screen",
+        "what is on the screen",
+        "what's on my screen"
+      ],
+      "examples": ["Read the screen", "what's on my screen"]
+    },
+    {
+      "action": "time",
+      "patterns": ["what time is it", "what's the time", "what is the time", "tell me the time", "time"],
+      "examples": ["What time is it?"]
+    },
+    {
+      "action": "date",
+      "patterns": ["what's the date", "what is the date", "what's today's date", "what day is it", "what day is it today", "date"],
+      "examples": ["what day is it today"]
+    },
+    {
+      "action": "battery",
+      "patterns": ["how much battery do i have", "how much battery", "how much battery is left", "what's my battery", "battery level", "battery"],
+      "examples": ["How much battery do I have?"]
+    },
+    {
+      "action": "help",
+      "patterns": ["help", "what can i say", "what can you do"],
+      "examples": ["What can I say?"]
+    },
+    {
+      "action": "openApp",
+      "patterns": ["open {app}", "launch {app}", "start {app}", "go to {app}", "open up {app}"],
+      "examples": ["Open WhatsApp", "open Telegram", "launch the camera"]
+    }
+  ],
+  "messengers": {
+    "whatsapp": ["whatsapp", "whats app", "what's app"],
+    "sms": ["text", "sms", "text message"]
+  },
+  "defaultMessenger": "whatsapp",
+  "yesWords": ["yes", "yeah", "yep", "yes please", "sure", "okay", "ok", "send it", "send", "do it", "go ahead", "call", "call them", "correct", "that's right"],
+  "noWords": ["no", "nope", "cancel", "stop", "don't", "do not", "wait", "not"],
+  "replies": {
+    "listening": "Listening…",
+    "confirmListening": "Say yes or no.",
+    "notHeard": "I didn't hear anything. Tap Speak and try again.",
+    "notUnderstood": "Sorry, I didn't catch that. Try saying: open WhatsApp.",
+    "needMicrophone": "SmartAssist needs the microphone to hear you. Tap Speak again and allow it.",
+    "needContacts": "SmartAssist needs your contacts to find {contact}.",
+    "needPhone": "SmartAssist needs permission to make calls.",
+    "needSms": "SmartAssist needs permission to send text messages.",
+    "opening": "Opening {app}.",
+    "noApp": "I couldn't find an app called {app}.",
+    "noContact": "I couldn't find {contact} in your contacts.",
+    "confirmMessage": "Send: {message}. To {contact}, on {messenger}? Say yes or no.",
+    "confirmCall": "Call {contact}? Say yes or no.",
+    "cancelled": "Okay, I won't send it.",
+    "cancelledCall": "Okay, I won't call.",
+    "sent": "Message sent to {contact}.",
+    "pressSend": "I've typed your message to {contact}. Press Send to send it.",
+    "noMessenger": "{messenger} isn't on this phone.",
+    "unsupportedMessenger": "I can send messages on WhatsApp or by text. I can't send on {messenger} yet.",
+    "calling": "Calling {contact}.",
+    "time": "It's {time}.",
+    "date": "Today is {date}.",
+    "battery": "Your battery is at {percent} percent.",
+    "help": "You can say: open WhatsApp. Send a message to Mum saying I'm on my way. Call Mum. What time is it. Read the screen."
+  }
+}
