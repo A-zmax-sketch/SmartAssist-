@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- The name shown in Settings > Accessibility. -->
+  <string name="screen_reader_label">SmartAssist</string>
+  <!-- Shown under the switch in Settings > Accessibility. -->
+  <string name="screen_reader_description">SmartAssist reads the screen of any app aloud when you tap its yellow Read screen button. Drag the button to move it. It only reads when you ask, and nothing leaves your phone.</string>
+</resources>

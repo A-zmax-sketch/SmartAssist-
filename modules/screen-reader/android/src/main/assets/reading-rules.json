@@ -1,0 +1,38 @@
+{
+  "about": "SmartAssist's reading instructions. The Android screen reader follows these rules when it reads another app's screen. Change the words freely, but keep every key. src/__tests__/readingRules.test.ts checks this file, and the app needs rebuilding (npx expo run:android) after a change.",
+  "skipApps": ["com.android.systemui"],
+  "skipUnlabelledButtons": true,
+  "stopWhenScreenChanges": true,
+  "roles": {
+    "button": "Button",
+    "textBox": "Text box",
+    "heading": "Heading",
+    "checkbox": "Tick box",
+    "switch": "Switch",
+    "picture": "Picture",
+    "list": "List"
+  },
+  "states": {
+    "ticked": "ticked",
+    "notTicked": "not ticked",
+    "on": "on",
+    "off": "off",
+    "empty": "empty",
+    "hidden": "hidden"
+  },
+  "summary": {
+    "enabled": true,
+    "opening": "{app}.",
+    "counts": {
+      "button": ["1 button", "{n} buttons"],
+      "textBox": ["1 text box", "{n} text boxes"],
+      "list": ["1 list", "{n} lists"]
+    }
+  },
+  "listItems": ["1 item", "{n} items"],
+  "phrases": {
+    "and": "and",
+    "nothingToRead": "There is nothing to read on this screen.",
+    "endOfScreen": "End of screen."
+  }
+}

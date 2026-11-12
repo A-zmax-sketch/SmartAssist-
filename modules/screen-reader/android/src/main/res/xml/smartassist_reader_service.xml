@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What SmartAssist's screen reader asks Android for:
+  - canRetrieveWindowContent: see the text and buttons of the app on screen.
+  - typeWindowStateChanged: know when a new screen opens, to hide its buttons
+    inside SmartAssist and stop reading a screen the user has left.
+  - isAccessibilityTool: tells Android this is an accessibility tool for
+    people with disabilities.
+  It does not ask for Android's own accessibility button: SmartAssist shows its
+  own yellow button, and two floating buttons would confuse older users.
+  It never starts reading on its own.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+  android:accessibilityEventTypes="typeWindowStateChanged"
+  android:accessibilityFeedbackType="feedbackSpoken"
+  android:accessibilityFlags="flagIncludeNotImportantViews"
+  android:canRetrieveWindowContent="true"
+  android:description="@string/screen_reader_description"
+  android:isAccessibilityTool="true"
+  android:notificationTimeout="100" />

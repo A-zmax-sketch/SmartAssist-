@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!--
+      SmartAssist's screen reader. Android only lets it run after the user
+      switches it on in Settings > Accessibility; that switch is the permission.
+    -->
+    <service
+      android:name="expo.modules.screenreader.SmartAssistReaderService"
+      android:exported="true"
+      android:label="@string/screen_reader_label"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/smartassist_reader_service" />
+    </service>
+  </application>
+</manifest>
