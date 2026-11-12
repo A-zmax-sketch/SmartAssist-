@@ -10,6 +10,8 @@ import { useEffect } from 'react';
 
 import { AppThemeProvider, useAppTheme } from '@/theme/ThemeContext';
 
+import { setScreenReaderVoice } from '../../modules/screen-reader';
+
 // Keep the splash screen up until the font and saved settings are ready.
 SplashScreen.preventAutoHideAsync();
 
@@ -39,6 +41,12 @@ function AppStack() {
       SplashScreen.hideAsync();
     }
   }, [ready]);
+
+  // The Android screen reader runs outside the app, so give it the voice
+  // speed and pitch from Settings whenever they change. Does nothing elsewhere.
+  useEffect(() => {
+    setScreenReaderVoice(settings.voiceRate, settings.voicePitch);
+  }, [settings.voiceRate, settings.voicePitch]);
 
   if (!ready) {
     return null;

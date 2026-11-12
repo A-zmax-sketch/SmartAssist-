@@ -12,10 +12,14 @@ import { BORDER_WIDTH, RADIUS, TARGET_GAP } from '@/theme/layout';
 import { LINE_HEIGHT } from '@/theme/typography';
 import { useAppTheme } from '@/theme/ThemeContext';
 
+import { useScreenReaderOn } from '../../modules/screen-reader';
+
 /**
- * Read Aloud: type or paste text and hear it. Owner: Kosisochukwu.
+ * Read Aloud: hear what is on the screen, or type or paste text and hear it.
+ * Owner: Kosisochukwu.
  *
- * Main actions (at most 4): Paste, Play/Pause, Stop, Replay.
+ * The "Read my screen" card at the top opens the setup guide (screen-reading.tsx).
+ * Main actions for typed text (at most 4): Paste, Play/Pause, Stop, Replay.
  * Smaller controls: speed (Slower / Faster) and a link to Saved Texts.
  * The Save button arrives in phase 5, with the saved-texts storage.
  */
@@ -29,6 +33,11 @@ export default function ReadAloudScreen() {
   // Opening another screen on top (Help, the mic button...) pauses reading,
   // so the user can come back and press Play to carry on.
   useFocusEffect(useCallback(() => pause, [pause]));
+
+  // Whether Android screen reading is switched on. Checked again when the user
+  // comes back from the phone's Settings, and each time this screen shows.
+  const { isOn: screenReadingOn, recheck } = useScreenReaderOn();
+  useFocusEffect(recheck);
 
   const hasText = text.trim().length > 0;
   const playing = reader.status === 'playing';
@@ -57,7 +66,22 @@ export default function ReadAloudScreen() {
 
   return (
     <Screen title="Read Aloud">
-      <AppText>Type or paste the text you want to hear.</AppText>
+      <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <AppText variant="button">Read my screen</AppText>
+        <AppText>
+          {screenReadingOn
+            ? 'Screen reading is on. In any app, tap the yellow Read screen button.'
+            : 'Hear what is on your screen in any app.'}
+        </AppText>
+        <BigButton
+          label={screenReadingOn ? 'How to use it' : 'Set up screen reading'}
+          icon="phone-portrait"
+          hint="Shows the steps, one at a time, and reads them aloud."
+          onPress={() => router.push('/screen-reading')}
+        />
+      </View>
+
+      <AppText>Or type or paste the text you want to hear.</AppText>
       <TextInput
         value={text}
         onChangeText={changeText}
@@ -176,6 +200,12 @@ export default function ReadAloudScreen() {
 }
 
 const styles = StyleSheet.create({
+  card: {
+    borderWidth: BORDER_WIDTH,
+    borderRadius: RADIUS,
+    padding: 16,
+    gap: TARGET_GAP,
+  },
   textBox: {
     minHeight: 200,
     borderWidth: BORDER_WIDTH,
