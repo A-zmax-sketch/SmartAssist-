@@ -13,10 +13,12 @@ jest.mock('expo-speech', () => ({
 jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(() => Promise.resolve('Copied words.')),
 }));
+let mockParams: { read?: string } = {};
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
   useCanGoBack: () => true,
   useFocusEffect: jest.fn(),
+  useLocalSearchParams: () => mockParams,
 }));
 
 const speakMock = Speech.speak as jest.Mock;
@@ -40,6 +42,7 @@ async function showScreen() {
 
 beforeEach(() => {
   speakMock.mockClear();
+  mockParams = {};
 });
 
 test('Play is greyed out until there is some text', async () => {
@@ -71,4 +74,12 @@ test('Paste puts the copied text in the box', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Paste' }));
 
   expect(await screen.findByDisplayValue('Copied words.')).toBeTruthy();
+});
+
+test('"Hey Siri, read my copied text": the copied text is pasted and read straight away', async () => {
+  mockParams = { read: '1' };
+  await showScreen();
+
+  expect(await screen.findByDisplayValue('Copied words.')).toBeTruthy();
+  expect(spoken()).toEqual(['Copied words.']);
 });

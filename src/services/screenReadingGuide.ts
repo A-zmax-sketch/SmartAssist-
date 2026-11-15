@@ -46,6 +46,38 @@ export const IPHONE_STEPS = [
   'You are ready. In any app, tap the small button, then tap Play to hear the screen. You can also swipe down from the top of the screen with two fingers.',
 ];
 
+/** iPhone, once Speak Screen is on: how to use it. */
+export const IPHONE_HOW_TO_USE =
+  'Speak Screen is on. In any app, swipe down from the very top of the screen with two fingers, and your iPhone reads everything on it. Or say “Hey Siri, speak screen”. While it reads, a small panel lets you pause, skip and change the speed.';
+
+/** iPhone: what Back Tap does, before the user sets it up. */
+export const IPHONE_BACK_TAP_INFO =
+  'Two-finger swipes can be hard. Set up Back Tap, and tapping the back of your iPhone twice reads the screen instead.';
+
+/** iPhone: set Back Tap to Speak Screen. */
+export const IPHONE_BACK_TAP_STEPS = [
+  'Leave SmartAssist and open the Settings app. Tap Accessibility, then tap Touch.',
+  'Scroll to the bottom and tap Back Tap.',
+  'Tap Double Tap. Then scroll down and tap Speak Screen.',
+  'You are ready. In any app, tap the back of your iPhone twice, firmly, near the camera. Your iPhone reads the screen to you.',
+];
+
+/** iPhone: how to give voice commands from anywhere. */
+export const IPHONE_VOICE_HOW_TO_USE =
+  'You can talk to SmartAssist from anywhere. Say “Hey Siri, talk to SmartAssist”, then your command, like “Send a message to Mum saying I’m on my way”. SmartAssist always asks you before it sends a message or makes a call.';
+
+/** iPhone: put "Talk to SmartAssist" on the Action Button (iPhone 15 Pro and newer). */
+export const IPHONE_ACTION_BUTTON_STEPS = [
+  'This is for iPhones with an Action Button: the small button above the volume buttons. Leave SmartAssist, open the Settings app and tap Action Button.',
+  'Swipe sideways until you see Shortcut. Then tap Choose a Shortcut.',
+  'Find SmartAssist in the list and tap Talk to SmartAssist.',
+  'You are ready. Press and hold the Action Button, and SmartAssist opens, ready to listen.',
+];
+
+/** Shown under the iPhone voice section. */
+export const IPHONE_SIRI_TIP =
+  'If Siri doesn’t answer, open the Settings app, search for Siri, and switch on “Hey Siri” or “Siri”.';
+
 /** Shown in Expo Go or the web preview, where the screen reader is missing. */
 export const UNAVAILABLE_MESSAGE =
   'Screen reading needs the full SmartAssist app on an Android phone. This test version cannot read other apps.';

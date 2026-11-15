@@ -3,14 +3,19 @@ import {
   AtkinsonHyperlegible_700Bold,
   useFonts,
 } from '@expo-google-fonts/atkinson-hyperlegible';
-import { Stack } from 'expo-router';
+import { router, Stack, usePathname, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { AppThemeProvider, useAppTheme } from '@/theme/ThemeContext';
 
-import { resumeHeySmartAssist, setScreenReaderVoice } from '../../modules/screen-reader';
+import {
+  type LaunchAction,
+  resumeHeySmartAssist,
+  setScreenReaderVoice,
+  useLaunchActions,
+} from '../../modules/screen-reader';
 
 // Keep the splash screen up until the font and saved settings are ready.
 SplashScreen.preventAutoHideAsync();
@@ -52,6 +57,26 @@ function AppStack() {
   useEffect(() => {
     resumeHeySmartAssist();
   }, []);
+
+  // iPhone: "Hey Siri, talk to SmartAssist", the Action Button or a shortcut
+  // opened the app with a job. The time makes each request new, so the
+  // screen reacts even if it is already open.
+  const openForLaunch = useCallback((action: LaunchAction) => {
+    const now = String(Date.now());
+    if (action === 'listen') {
+      router.navigate({ pathname: '/voice-command', params: { listen: now } });
+    } else if (action === 'readCopied') {
+      router.navigate({ pathname: '/read-aloud', params: { read: now } });
+    } else {
+      router.navigate('/read-aloud');
+    }
+  }, []);
+  // Wait until navigation is ready and, on first use, until Home has sent the
+  // user to Welcome: that redirect replaces whatever screen is on top.
+  const navigationReady = useRootNavigationState()?.key != null;
+  const pathname = usePathname();
+  const startScreenSettled = settings.hasSeenWelcome || pathname !== '/';
+  useLaunchActions(openForLaunch, ready && navigationReady && startScreenSettled);
 
   if (!ready) {
     return null;

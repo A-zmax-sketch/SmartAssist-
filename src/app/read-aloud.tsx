@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { BigButton } from '@/components/BigButton';
@@ -19,6 +19,8 @@ import { useScreenReaderOn } from '../../modules/screen-reader';
  * Owner: Kosisochukwu.
  *
  * The "Read my screen" card at the top opens the setup guide (screen-reading.tsx).
+ * Opened with ?read=… ("Hey Siri, read my copied text with SmartAssist"),
+ * it pastes what was copied and starts reading at once.
  * Main actions for typed text (at most 4): Paste, Play/Pause, Stop, Replay.
  * Smaller controls: speed (Slower / Faster) and a link to Saved Texts.
  * The Save button arrives in phase 5, with the saved-texts storage.
@@ -41,6 +43,35 @@ export default function ReadAloudScreen() {
 
   const hasText = text.trim().length > 0;
   const playing = reader.status === 'playing';
+  const isIphone = Platform.OS === 'ios';
+
+  // Siri asked to read the copied text: paste it, then play once it is in the box.
+  const { read } = useLocalSearchParams<{ read?: string }>();
+  const playWhenReady = useRef(false);
+  useEffect(() => {
+    if (!read) return;
+    void Clipboard.getStringAsync()
+      .catch(() => '')
+      .then((copied) => {
+        if (copied.trim().length === 0) {
+          setNotice('Nothing to read. Copy some text in another app first.');
+          return;
+        }
+        reader.stop();
+        setText(copied);
+        setNotice('');
+        playWhenReady.current = true;
+      });
+    // Only when Siri asks again (a new ?read=), not when the reader changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [read]);
+  const { play } = reader;
+  useEffect(() => {
+    if (playWhenReady.current && hasText) {
+      playWhenReady.current = false;
+      play();
+    }
+  }, [text, hasText, play]);
 
   const changeText = (newText: string) => {
     reader.stop(); // the old sentences no longer match the box
@@ -69,9 +100,11 @@ export default function ReadAloudScreen() {
       <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <AppText variant="button">Read my screen</AppText>
         <AppText>
-          {screenReadingOn
-            ? 'Screen reading is on. In any app, tap the yellow Read screen button.'
-            : 'Hear what is on your screen in any app.'}
+          {!screenReadingOn
+            ? 'Hear what is on your screen in any app.'
+            : isIphone
+              ? 'Speak Screen is on. In any app, swipe down from the top with two fingers.'
+              : 'Screen reading is on. In any app, tap the yellow Read screen button.'}
         </AppText>
         <BigButton
           label={screenReadingOn ? 'How to use it' : 'Set up screen reading'}

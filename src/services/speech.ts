@@ -106,6 +106,23 @@ export async function speak(text: string, voice: Voice): Promise<void> {
   Speech.speak(text, { rate: voice.rate, pitch: voice.pitch });
 }
 
+/**
+ * Says something and finishes when it has been said (or stopped). The voice
+ * assistant uses it so it never listens while it is still talking.
+ */
+export async function speakAndWait(text: string, voice: Voice): Promise<void> {
+  await Speech.stop();
+  await new Promise<void>((resolve) => {
+    // In case the phone never reports the end: about 3 words a second, plus a margin.
+    const safety = setTimeout(resolve, 3000 + (text.length * 120) / voice.rate);
+    const finish = () => {
+      clearTimeout(safety);
+      resolve();
+    };
+    Speech.speak(text, { rate: voice.rate, pitch: voice.pitch, onDone: finish, onStopped: finish, onError: finish });
+  });
+}
+
 /** Stops whatever is being said right now. */
 export async function stopSpeaking(): Promise<void> {
   await Speech.stop();

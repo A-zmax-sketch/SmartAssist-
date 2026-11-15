@@ -7,10 +7,8 @@ import { useAppTheme } from '@/theme/ThemeContext';
 
 /**
  * The large mic button fixed at the bottom of every screen.
- *
- * PHASE 4 TASK (The Revenant): for now it only opens the Voice Command
- * screen. In phase 4 it should start listening straight away, with the
- * pulsing ring, rising tone and vibration from the design rules.
+ * Opens Voice Command, which starts listening straight away
+ * (on Android, the screen reader's Listening card opens).
  */
 export function MicButton() {
   const { colors } = useAppTheme();
@@ -19,8 +17,8 @@ export function MicButton() {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Voice command"
-      accessibilityHint="Opens voice commands so you can speak to the app."
-      onPress={() => router.push('/voice-command')}
+      accessibilityHint="Listens for a voice command."
+      onPress={() => router.push({ pathname: '/voice-command', params: { listen: String(Date.now()) } })}
       style={({ pressed }) => [
         styles.mic,
         {
