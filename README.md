@@ -12,7 +12,7 @@ Built with React Native and Expo (SDK 58) for Android and iPhone from one codeba
 | Kosisochukwu (Uchennendu Kosisochukwu Kalu) | Text-to-speech, UI |
 | The Revenant | Voice commands, UI |
 | Backend/testing member 1 | Settings and data storage |
-| Backend/testing member 2 | Voice command logic and its tests |
+| David | Voice command logic and its tests |
 | Backend/testing member 3 | Testing and QA |
 
 ## Progress
