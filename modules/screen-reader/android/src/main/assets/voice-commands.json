@@ -1,5 +1,5 @@
 {
-  "about": "SmartAssist's voice commands on Android. Each command has patterns: the words people say, with {placeholders} for the parts that change. Patterns are tried from top to bottom and the first one that fits wins, so put longer patterns before shorter ones. Write patterns in lower case, without punctuation. Each command's examples must match one of its patterns (src/__tests__/voiceCommands.test.ts checks this). Replies are what SmartAssist says; keep their {placeholders}. Rebuild the app (npx expo run:android) after a change.",
+  "about": "SmartAssist's voice commands, on Android (VoiceAssistant.kt) and iPhone (src/services/voiceAssistant.ts). Each command has patterns: the words people say, with {placeholders} for the parts that change. Patterns are tried from top to bottom and the first one that fits wins, so put longer patterns before shorter ones. Write patterns in lower case, without punctuation. Each command's examples must match one of its patterns (src/__tests__/voiceCommands.test.ts checks this). Replies are what SmartAssist says; keep their {placeholders}. iphoneApps are the apps \"open …\" can open on iPhone, where apps can only be opened by their link (Android opens any app by name). Rebuild the app (npx expo run:android or npx expo run:ios) after a change.",
   "commands": [
     {
       "action": "sendMessage",
@@ -70,6 +70,35 @@
       "examples": ["Open WhatsApp", "open Telegram", "launch the camera"]
     }
   ],
+  "iphoneApps": [
+    { "name": "WhatsApp", "say": ["whatsapp", "whats app", "what's app"], "link": "whatsapp://" },
+    { "name": "Telegram", "say": ["telegram"], "link": "tg://" },
+    { "name": "YouTube", "say": ["youtube", "you tube"], "link": "youtube://" },
+    { "name": "Instagram", "say": ["instagram"], "link": "instagram://" },
+    { "name": "Facebook", "say": ["facebook"], "link": "fb://" },
+    { "name": "Messenger", "say": ["messenger", "facebook messenger"], "link": "fb-messenger://" },
+    { "name": "X", "say": ["x", "twitter"], "link": "twitter://" },
+    { "name": "Gmail", "say": ["gmail", "g mail"], "link": "googlegmail://" },
+    { "name": "Google Maps", "say": ["google maps"], "link": "comgooglemaps://" },
+    { "name": "Chrome", "say": ["chrome", "google chrome"], "link": "googlechrome://" },
+    { "name": "Google", "say": ["google"], "link": "google://" },
+    { "name": "Spotify", "say": ["spotify"], "link": "spotify://" },
+    { "name": "Zoom", "say": ["zoom"], "link": "zoomus://" },
+    { "name": "Snapchat", "say": ["snapchat", "snap chat"], "link": "snapchat://" },
+    { "name": "LinkedIn", "say": ["linkedin", "linked in"], "link": "linkedin://" },
+    { "name": "Uber", "say": ["uber"], "link": "uber://" },
+    { "name": "Maps", "say": ["maps", "apple maps", "map"], "link": "maps://" },
+    { "name": "Messages", "say": ["messages", "text messages", "imessage", "i message"], "link": "sms:" },
+    { "name": "Mail", "say": ["mail", "email", "e mail", "apple mail"], "link": "message://" },
+    { "name": "Music", "say": ["music", "apple music"], "link": "music://" },
+    { "name": "Calendar", "say": ["calendar"], "link": "calshow://" },
+    { "name": "Notes", "say": ["notes"], "link": "mobilenotes://" },
+    { "name": "Photos", "say": ["photos", "gallery", "pictures"], "link": "photos-redirect://" },
+    { "name": "Podcasts", "say": ["podcasts"], "link": "podcasts://" },
+    { "name": "App Store", "say": ["app store"], "link": "itms-apps://" },
+    { "name": "Safari", "say": ["safari", "the internet", "internet", "browser"], "link": "https://www.google.com" },
+    { "name": "Settings", "say": ["settings", "phone settings"], "link": "app-settings:" }
+  ],
   "messengers": {
     "whatsapp": ["whatsapp", "whats app", "what's app"],
     "sms": ["text", "sms", "text message"]
@@ -102,6 +131,16 @@
     "time": "It's {time}.",
     "date": "Today is {date}.",
     "battery": "Your battery is at {percent} percent.",
-    "help": "You can say: open WhatsApp. Send a message to Mum saying I'm on my way. Call Mum. What time is it. Read the screen."
+    "help": "You can say: open WhatsApp. Send a message to Mum saying I'm on my way. Call Mum. What time is it. Read the screen.",
+    "needSpeech": "SmartAssist needs the microphone and speech recognition to hear you. Turn them on in Settings, then try again.",
+    "noSpeech": "I can't listen right now. Check your internet connection and try again, or type your command.",
+    "notInstalled": "{app} isn't on this phone.",
+    "iphoneCantOpen": "On iPhone, I can't open {app} myself. Say: Hey Siri, open {app}.",
+    "iphoneReadScreen": "On iPhone, Apple reads the screen for you. Swipe down from the top of the screen with two fingers, or say: Hey Siri, speak screen.",
+    "iphoneTapSend": "Opening WhatsApp with your message to {contact}. Tap the Send arrow to send it.",
+    "iphoneSmsReady": "Your text to {contact} is ready. Tap the blue arrow to send it.",
+    "iphoneCalling": "Calling {contact}. If your iPhone asks, tap Call.",
+    "noBattery": "I can't check the battery right now.",
+    "cantCall": "This phone can't make calls."
   }
 }

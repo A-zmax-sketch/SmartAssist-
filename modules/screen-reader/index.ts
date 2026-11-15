@@ -1,16 +1,21 @@
-import { requireOptionalNativeModule } from 'expo';
+import { type EventSubscription, NativeModule, requireOptionalNativeModule } from 'expo';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, PermissionsAndroid, Platform } from 'react-native';
 
 /**
- * SmartAssist's Android screen reader, as seen from JavaScript.
+ * SmartAssist's screen reading and voice commands, as seen from JavaScript.
  * Owner: Kosisochukwu.
  *
- * The native code is in android/ and only exists in an Android development
- * build. In Expo Go, on iPhone and on the web the module is missing, so every
- * function here does nothing and `screenReaderAvailable` is false.
+ * Android (android/): SmartAssist's own screen reader, the floating button,
+ * voice commands and "Hey SmartAssist".
+ * iPhone (ios/): Apple doesn't let apps read other apps, so it reports whether
+ * Apple's Speak Screen is on, hears voice commands inside SmartAssist, and
+ * passes on "Hey Siri, talk to SmartAssist" (app-intents/).
+ *
+ * The native code only exists in a development build. In Expo Go and on the
+ * web the module is missing, so every function here does nothing.
  */
-type ScreenReaderNative = {
+type AndroidNative = {
   isEnabled(): boolean;
   openSettings(): void;
   setVoice(rate: number, pitch: number): void;
@@ -22,14 +27,41 @@ type ScreenReaderNative = {
   isWakeWordWanted(): boolean;
 };
 
-const native = requireOptionalNativeModule<ScreenReaderNative>('ScreenReader');
+/** What the iPhone module sends while it listens. */
+export type SpeechEvent =
+  | { type: 'partial'; text: string }
+  | { type: 'end'; text: string }
+  | { type: 'error'; code: 'permission' | 'unavailable' | 'audio' };
+
+type IphoneEvents = {
+  onSpeech(event: SpeechEvent): void;
+  onLaunchAction(): void;
+};
+
+declare class IphoneNative extends NativeModule<IphoneEvents> {
+  isSpeakScreenOn(): Promise<boolean>;
+  requestSpeechPermission(): Promise<'granted' | 'denied' | 'restricted'>;
+  startListening(options: { contextualStrings: string[]; shortAnswer: boolean }): Promise<boolean>;
+  stopListening(): Promise<void>;
+  cancelListening(): Promise<void>;
+  takeLaunchAction(): string | null;
+}
+
+const nativeModule = requireOptionalNativeModule('ScreenReader');
+const native = Platform.OS === 'android' ? (nativeModule as AndroidNative | null) : null;
+const iphone = Platform.OS === 'ios' ? (nativeModule as IphoneNative | null) : null;
 
 /** True on an Android build of SmartAssist that includes the screen reader. */
 export const screenReaderAvailable = native != null;
 
-/** True if the user has switched SmartAssist on in Settings > Accessibility. */
+/** True if the user has switched SmartAssist on in Settings > Accessibility (Android). */
 export function isScreenReaderOn(): boolean {
   return native?.isEnabled() ?? false;
+}
+
+/** True if Settings > Accessibility > Spoken Content > Speak Screen is on (iPhone). */
+export async function isSpeakScreenOn(): Promise<boolean> {
+  return (await iphone?.isSpeakScreenOn().catch(() => false)) ?? false;
 }
 
 /** Opens the phone's Accessibility settings. */
@@ -118,22 +150,128 @@ export function useHeySmartAssist() {
 }
 
 /**
- * Whether screen reading is on, checked again every time the user comes
- * back to SmartAssist (for example from the phone's Settings).
+ * Whether screen reading is on: SmartAssist's reader on Android, Apple's
+ * Speak Screen on iPhone. Checked again every time the user comes back to
+ * SmartAssist (for example from the phone's Settings).
  * `recheck` checks again on demand, e.g. when a screen comes into view.
  */
 export function useScreenReaderOn(): { isOn: boolean; recheck: () => void } {
   const [isOn, setIsOn] = useState(isScreenReaderOn);
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (appState) => {
-      if (appState === 'active') {
-        setIsOn(isScreenReaderOn());
-      }
-    });
-    return () => subscription.remove();
+  const recheck = useCallback(() => {
+    if (iphone) {
+      void isSpeakScreenOn().then(setIsOn);
+    } else {
+      setIsOn(isScreenReaderOn());
+    }
   }, []);
 
-  const recheck = useCallback(() => setIsOn(isScreenReaderOn()), []);
+  useEffect(() => {
+    recheck();
+    const subscription = AppState.addEventListener('change', (appState) => {
+      if (appState === 'active') recheck();
+    });
+    return () => subscription.remove();
+  }, [recheck]);
+
   return { isOn, recheck };
+}
+
+// ---- Listening inside the app (iPhone) ----------------------------------
+
+/** True if this build can hear voice commands inside SmartAssist (iPhone development build). */
+export const canListenInApp = iphone != null;
+
+export type ListenResult =
+  | { kind: 'heard'; text: string }
+  /** Listened, but nobody spoke. */
+  | { kind: 'nothing' }
+  /** The microphone or speech recognition isn't allowed. */
+  | { kind: 'denied' }
+  /** Can't listen here (Expo Go, no internet for the recogniser, no microphone). */
+  | { kind: 'unavailable' }
+  /** cancelListening() was called. */
+  | { kind: 'cancelled' };
+
+type ListenOptions = {
+  /** Words the user is likely to say, like app names, so they are heard right. */
+  contextualStrings?: string[];
+  /** Waiting for a short answer like "yes": stops sooner after the user speaks. */
+  shortAnswer?: boolean;
+  /** Called with the words so far, while the user is talking. */
+  onWords?: (text: string) => void;
+};
+
+let endListening: ((result: ListenResult) => void) | null = null;
+
+/**
+ * Listens for one thing the user says and resolves with the words. Asks for
+ * the microphone and speech recognition the first time. Stops by itself
+ * when the user stops talking.
+ */
+export async function listenOnce({ contextualStrings = [], shortAnswer = false, onWords }: ListenOptions = {}): Promise<ListenResult> {
+  if (!iphone) return { kind: 'unavailable' };
+  const permission = await iphone.requestSpeechPermission().catch(() => 'denied');
+  if (permission !== 'granted') return { kind: 'denied' };
+
+  endListening?.({ kind: 'cancelled' });
+  return new Promise<ListenResult>((resolve) => {
+    let subscription: EventSubscription | null = null;
+    const end = (result: ListenResult) => {
+      subscription?.remove();
+      if (endListening === end) endListening = null;
+      resolve(result);
+    };
+    endListening = end;
+    subscription = iphone.addListener('onSpeech', (event) => {
+      if (event.type === 'partial') {
+        onWords?.(event.text);
+      } else if (event.type === 'end') {
+        end(event.text.trim() ? { kind: 'heard', text: event.text } : { kind: 'nothing' });
+      } else {
+        end(event.code === 'permission' ? { kind: 'denied' } : { kind: 'unavailable' });
+      }
+    });
+    // If it can't start, an error event has already ended it.
+    iphone.startListening({ contextualStrings, shortAnswer }).catch(() => end({ kind: 'unavailable' }));
+  });
+}
+
+/** Stops listening now and keeps what was heard so far ("I've finished talking"). */
+export function stopListening(): void {
+  void iphone?.stopListening();
+}
+
+/** Stops listening and throws away what was heard. */
+export function cancelListening(): void {
+  void iphone?.cancelListening();
+  endListening?.({ kind: 'cancelled' });
+}
+
+// ---- Siri, the Action Button and Shortcuts (iPhone) --------------------
+
+/** What "Hey Siri, … SmartAssist" asked for. */
+export type LaunchAction = 'listen' | 'readAloud' | 'readCopied';
+
+/** The action Siri or the Action Button just asked for, once; null if none. */
+export function takeLaunchAction(): LaunchAction | null {
+  const action = iphone?.takeLaunchAction();
+  return action === 'listen' || action === 'readAloud' || action === 'readCopied' ? action : null;
+}
+
+/**
+ * Calls `handle` whenever Siri, the Action Button or a shortcut opens
+ * SmartAssist with a job, including the one that started the app.
+ */
+export function useLaunchActions(handle: (action: LaunchAction) => void, enabled = true): void {
+  useEffect(() => {
+    if (!iphone || !enabled) return;
+    const check = () => {
+      const action = takeLaunchAction();
+      if (action) handle(action);
+    };
+    const subscription = iphone.addListener('onLaunchAction', check);
+    check();
+    return () => subscription.remove();
+  }, [handle, enabled]);
 }
