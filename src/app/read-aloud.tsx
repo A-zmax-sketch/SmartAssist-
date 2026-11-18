@@ -7,7 +7,11 @@ import { AppText } from '@/components/AppText';
 import { BigButton } from '@/components/BigButton';
 import { Screen } from '@/components/Screen';
 import { useReadAloud } from '@/hooks/useReadAloud';
-import { describeRate, fasterRate, SPEECH_RATES, slowerRate } from '@/services/speech';
+import { useFeedback } from '@/services/feedback';
+import { useScreenRequests } from '@/services/screenRequests';
+import { describeRate, fasterRate, SPEECH_RATES, slowerRate, splitIntoSentences } from '@/services/speech';
+import { readAloudPlace } from '@/storage/readAloudStore';
+import { saveText, titleFor } from '@/storage/savedTextsStore';
 import { BORDER_WIDTH, RADIUS, TARGET_GAP } from '@/theme/layout';
 import { LINE_HEIGHT } from '@/theme/typography';
 import { useAppTheme } from '@/theme/ThemeContext';
@@ -21,9 +25,14 @@ import { useScreenReaderOn } from '../../modules/screen-reader';
  * The "Read my screen" card at the top opens the setup guide (screen-reading.tsx).
  * Opened with ?read=… ("Hey Siri, read my copied text with SmartAssist"),
  * it pastes what was copied and starts reading at once.
- * Main actions for typed text (at most 4): Paste, Play/Pause, Stop, Replay.
+ * Main actions for typed text: Paste, Play/Pause, Stop, Replay, Save.
  * Smaller controls: speed (Slower / Faster) and a link to Saved Texts.
- * The Save button arrives in phase 5, with the saved-texts storage.
+ *
+ * Resume (feature 8): if reading was interrupted (a call, another app,
+ * closing SmartAssist), a "Continue where I stopped" card brings the text
+ * back and carries on from that sentence.
+ * Voice commands said on Voice Command ("read it", "pause", "save this",
+ * "continue"...) arrive through useScreenRequests.
  */
 export default function ReadAloudScreen() {
   const { colors, sizes, fonts, settings, updateSettings } = useAppTheme();
@@ -31,6 +40,8 @@ export default function ReadAloudScreen() {
   const [notice, setNotice] = useState('');
   const reader = useReadAloud(text);
   const { pause } = reader;
+  const feedback = useFeedback();
+  const savedPlace = readAloudPlace.use();
 
   // Opening another screen on top (Help, the mic button...) pauses reading,
   // so the user can come back and press Play to carry on.
@@ -47,7 +58,8 @@ export default function ReadAloudScreen() {
 
   // Siri asked to read the copied text: paste it, then play once it is in the box.
   const { read } = useLocalSearchParams<{ read?: string }>();
-  const playWhenReady = useRef(false);
+  // The sentence to start from once new text is in the box, or null.
+  const playWhenReady = useRef<number | null>(null);
   useEffect(() => {
     if (!read) return;
     void Clipboard.getStringAsync()
@@ -60,18 +72,44 @@ export default function ReadAloudScreen() {
         reader.stop();
         setText(copied);
         setNotice('');
-        playWhenReady.current = true;
+        playWhenReady.current = 0;
       });
     // Only when Siri asks again (a new ?read=), not when the reader changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [read]);
-  const { play } = reader;
+  const { playFrom } = reader;
   useEffect(() => {
-    if (playWhenReady.current && hasText) {
-      playWhenReady.current = false;
-      play();
+    if (playWhenReady.current !== null && hasText) {
+      const from = playWhenReady.current;
+      playWhenReady.current = null;
+      playFrom(from);
     }
-  }, [text, hasText, play]);
+  }, [text, hasText, playFrom]);
+
+  /** Puts `newText` in the box and reads it from sentence `from`. */
+  const readNow = (newText: string, from = 0) => {
+    reader.stop();
+    setNotice('');
+    if (newText === text) {
+      playFrom(from);
+    } else {
+      setText(newText);
+      playWhenReady.current = from;
+    }
+  };
+
+  /** Brings back the interrupted text and carries on from its sentence. */
+  const continueReading = () => {
+    if (savedPlace) readNow(savedPlace.text, savedPlace.sentence);
+  };
+
+  const save = async () => {
+    const saved = await saveText(text);
+    if (saved) {
+      setNotice(`Saved as “${saved.title}”. Find it in Saved Texts.`);
+      void feedback.say('Saved.');
+    }
+  };
 
   const changeText = (newText: string) => {
     reader.stop(); // the old sentences no longer match the box
@@ -90,6 +128,46 @@ export default function ReadAloudScreen() {
     changeText(hasText ? `${text}\n\n${copied}` : copied);
     setNotice('Text pasted. Press Play to hear it.');
   };
+
+  // Voice commands from Voice Command.
+  useScreenRequests('readAloud', (request) => {
+    switch (request.action) {
+      case 'play':
+        if (hasText) reader.play();
+        else if (savedPlace) continueReading();
+        else void feedback.say('There is no text yet. Type or paste some first.', 'notUnderstood');
+        break;
+      case 'pause':
+        pause();
+        break;
+      case 'stop':
+        reader.stop();
+        break;
+      case 'repeat':
+        reader.replay();
+        break;
+      case 'continue':
+        if (reader.status === 'paused') reader.play();
+        else if (savedPlace && !hasText) continueReading();
+        else if (hasText) reader.play();
+        break;
+      case 'paste':
+        void paste();
+        break;
+      case 'save':
+        if (hasText) void save();
+        else void feedback.say('There is no text to save yet.', 'notUnderstood');
+        break;
+      case 'load':
+        // Play on Saved Texts: read that text here.
+        if (request.value) readNow(request.value);
+        break;
+    }
+  });
+
+  // A reading that was interrupted earlier and isn't in the box now.
+  const canContinue = savedPlace != null && !hasText && reader.status === 'idle';
+  const placeSentences = savedPlace ? splitIntoSentences(savedPlace.text).length : 0;
 
   const rate = settings.voiceRate;
   const slowest = rate <= SPEECH_RATES[0];
@@ -113,6 +191,22 @@ export default function ReadAloudScreen() {
           onPress={() => router.push('/screen-reading')}
         />
       </View>
+
+      {canContinue && savedPlace && (
+        <View style={[styles.card, { borderColor: colors.primary, backgroundColor: colors.surface }]}>
+          <AppText variant="button">You stopped part-way</AppText>
+          <AppText>
+            “{titleFor(savedPlace.text)}”, at sentence {Math.min(savedPlace.sentence + 1, placeSentences)} of{' '}
+            {placeSentences}.
+          </AppText>
+          <BigButton
+            label="Continue where I stopped"
+            icon="play-forward"
+            hint="Brings the text back and reads on from that sentence."
+            onPress={continueReading}
+          />
+        </View>
+      )}
 
       <AppText>Or type or paste the text you want to hear.</AppText>
       <TextInput
@@ -179,6 +273,15 @@ export default function ReadAloudScreen() {
         </View>
       </View>
 
+      <BigButton
+        label="Save"
+        icon="bookmark"
+        variant="secondary"
+        hint="Keeps this text in Saved Texts, to hear again later."
+        disabled={!hasText}
+        onPress={() => void save()}
+      />
+
       {reader.status !== 'idle' && (
         <AppText variant="muted">
           {playing ? 'Reading' : 'Paused at'} sentence {reader.sentenceIndex + 1} of {reader.sentenceCount}.
@@ -223,7 +326,7 @@ export default function ReadAloudScreen() {
 
       <BigButton
         label="Saved Texts"
-        icon="bookmark"
+        icon="library"
         variant="secondary"
         hint="Opens texts you saved earlier."
         onPress={() => router.push('/saved-texts')}
