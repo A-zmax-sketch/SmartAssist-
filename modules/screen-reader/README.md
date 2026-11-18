@@ -25,7 +25,7 @@ The panel also has a **Speak** button. Tap it and a big "Listening…" card appe
 | "What time is it", "What day is it", "How much battery" | Answers out loud |
 | "Read the screen", "Help" | Reads the screen; lists what you can say |
 
-Anything that sends or calls is **always read back first**, and anything but a clear "yes" (including silence) cancels it. Permissions (microphone, contacts, SMS, phone) are asked for the first time each is needed, on the Listening card.
+Anything that sends or calls is **always read back first**. The question then stays on the card with big **Yes** and **No** buttons, so the user can answer out loud or tap. Anything but a clear "yes" (including silence) cancels it. Permissions (microphone, contacts, SMS, phone) are asked for the first time each is needed, on the Listening card.
 
 #### "Hey SmartAssist"
 
@@ -51,11 +51,15 @@ iPhone doesn't let apps read other apps' screens, so there is no iPhone version.
 | `…/FloatingControls.kt` | The yellow, draggable buttons (High-contrast colours, 64 dp, 22 sp) |
 | `android/src/main/assets/voice-commands.json` | **The voice commands**: what people say and what SmartAssist answers |
 | `…/VoiceAssistant.kt` | Carries out a command; asks "yes or no?" before sending or calling; presses WhatsApp's Send |
-| `…/VoiceActivity.kt` | The "Listening…" card (Android only allows the microphone while an app is on screen) |
+| `…/VoiceActivity.kt` | The "Listening…" card (Android only allows the microphone while an app is on screen), and the yes-or-no card with Yes and No buttons |
 | `…/VoiceCommands.kt` | Matches heard words to a command (same rules as `src/services/voiceCommands.ts`) |
 | `…/PhoneActions.kt` | Opens apps, finds contacts, WhatsApp, SMS, calls, time, date, battery |
 | `…/WakeWordService.kt` | "Hey SmartAssist": listens all the time, with a notification |
-| `…/ScreenReaderModule.kt` + `index.ts` | What the app's JavaScript can call: `isScreenReaderOn()`, `useScreenReaderOn()`, `openScreenReaderSettings()`, `setScreenReaderVoice()`, `listenForCommand()` |
+| `…/ScreenReaderModule.kt` + `index.ts` | What the app's JavaScript can call: `isScreenReaderOn()`, `useScreenReaderOn()`, `openScreenReaderSettings()`, `setScreenReaderVoice()`, `listenForCommand()`, and `listenOnce()` (Android: `hearOnce`, the Listening card hands the words back to the app) |
+
+#### Commands from inside the app
+
+The microphone button in SmartAssist uses `listenOnce()` on both phones: the app hears the words, tries SmartAssist's own commands first (`src/services/app-commands.json`: "bigger text", "start laundry", "zoom in"…) and passes anything else to the phone commands. On Android those go to `carryOut()` here (screen reading must be on); on iPhone, `src/services/voiceAssistant.ts` does them. "Hey SmartAssist" and the floating Speak button still understand the phone commands only.
 
 ### Building and testing on Android
 
@@ -91,7 +95,6 @@ Apple doesn't let any app see another app's screen, float buttons over other app
 | Opens any app by name | Opens the apps listed in `iphoneApps` in voice-commands.json, by their link (`whatsapp://`). For any other app it says "Say: Hey Siri, open …" |
 | Presses WhatsApp's Send | Opens the chat with the message typed in and says "Tap the Send arrow". Texts open in Apple's message sheet, filled in |
 | Calls straight away | Opens the call; iPhone may ask "Call?" once more |
-| "Yes or no?" is spoken only | The question is **shown with big Yes and No buttons** and spoken; the user can answer either way |
 
 The commands, patterns and replies are the same file for both phones (`android/src/main/assets/voice-commands.json`); iPhone-only replies start with `iphone`. SmartAssist's own voice on iPhone is set to play **even when the phone is on silent**, like VoiceOver.
 

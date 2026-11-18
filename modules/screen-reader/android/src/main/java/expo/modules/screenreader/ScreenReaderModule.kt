@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -61,7 +62,26 @@ class ScreenReaderModule : Module() {
     /** True if the user turned "Hey SmartAssist" on, even if the phone restarted since. */
     Function("isWakeWordWanted") { WakeWordService.isWanted(context) }
 
-    /** Carries out typed words as a voice command, for testing without a microphone. */
+    /**
+     * Opens the Listening card and gives back what was heard, without acting
+     * on it: SmartAssist's own commands ("bigger text", "start laundry") are
+     * carried out by the app. Works with screen reading off, too.
+     * Resolves to { kind: "heard", text } or { kind: "nothing" | "cancelled" | "denied" }.
+     */
+    AsyncFunction("hearOnce") { prompt: String, promise: Promise ->
+      VoiceActivity.listen(context, prompt) { result ->
+        promise.resolve(
+          when (result) {
+            is VoiceResult.Heard -> mapOf("kind" to "heard", "text" to result.text)
+            VoiceResult.NothingHeard -> mapOf("kind" to "nothing")
+            VoiceResult.Cancelled -> mapOf("kind" to "cancelled")
+            VoiceResult.NoPermission -> mapOf("kind" to "denied")
+          },
+        )
+      }
+    }
+
+    /** Carries out words as a voice command (phone commands: apps, messages, calls). False if screen reading is off. */
     Function("carryOut") { words: String ->
       val service = SmartAssistReaderService.running ?: return@Function false
       service.carryOut(words)

@@ -21,6 +21,7 @@ type AndroidNative = {
   setVoice(rate: number, pitch: number): void;
   listen(): boolean;
   carryOut(words: string): boolean;
+  hearOnce(prompt: string): Promise<{ kind: 'heard'; text: string } | { kind: 'nothing' | 'cancelled' | 'denied' }>;
   startWakeWord(): boolean;
   stopWakeWord(): void;
   isWakeWordOn(): boolean;
@@ -177,10 +178,13 @@ export function useScreenReaderOn(): { isOn: boolean; recheck: () => void } {
   return { isOn, recheck };
 }
 
-// ---- Listening inside the app (iPhone) ----------------------------------
+// ---- Listening inside the app ------------------------------------------
 
-/** True if this build can hear voice commands inside SmartAssist (iPhone development build). */
-export const canListenInApp = iphone != null;
+/**
+ * True if this build can hear voice commands inside SmartAssist: an iPhone
+ * or Android development build. (Not Expo Go or the web: commands are typed there.)
+ */
+export const canListenInApp = iphone != null || native != null;
 
 export type ListenResult =
   | { kind: 'heard'; text: string }
@@ -198,8 +202,10 @@ type ListenOptions = {
   contextualStrings?: string[];
   /** Waiting for a short answer like "yes": stops sooner after the user speaks. */
   shortAnswer?: boolean;
-  /** Called with the words so far, while the user is talking. */
+  /** Called with the words so far, while the user is talking (iPhone; Android shows them on its card). */
   onWords?: (text: string) => void;
+  /** Android: the big line on the Listening card. */
+  prompt?: string;
 };
 
 let endListening: ((result: ListenResult) => void) | null = null;
@@ -209,7 +215,11 @@ let endListening: ((result: ListenResult) => void) | null = null;
  * the microphone and speech recognition the first time. Stops by itself
  * when the user stops talking.
  */
-export async function listenOnce({ contextualStrings = [], shortAnswer = false, onWords }: ListenOptions = {}): Promise<ListenResult> {
+export async function listenOnce({ contextualStrings = [], shortAnswer = false, onWords, prompt = '' }: ListenOptions = {}): Promise<ListenResult> {
+  if (native) {
+    // Android: only a window on screen may use the microphone, so its Listening card hears it.
+    return native.hearOnce(prompt).catch((): ListenResult => ({ kind: 'unavailable' }));
+  }
   if (!iphone) return { kind: 'unavailable' };
   const permission = await iphone.requestSpeechPermission().catch(() => 'denied');
   if (permission !== 'granted') return { kind: 'denied' };
@@ -235,6 +245,23 @@ export async function listenOnce({ contextualStrings = [], shortAnswer = false, 
     // If it can't start, an error event has already ended it.
     iphone.startListening({ contextualStrings, shortAnswer }).catch(() => end({ kind: 'unavailable' }));
   });
+}
+
+/**
+ * Asks for the microphone (and, on iPhone, speech recognition), for the
+ * Welcome screen's "Allow microphone" button. 'unavailable' in Expo Go and
+ * on the web, where SmartAssist can't listen anyway.
+ */
+export async function askForMicrophone(): Promise<'granted' | 'denied' | 'unavailable'> {
+  if (iphone) {
+    const answer = await iphone.requestSpeechPermission().catch(() => 'denied');
+    return answer === 'granted' ? 'granted' : 'denied';
+  }
+  if (native && Platform.OS === 'android') {
+    const answer = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO).catch(() => 'denied');
+    return answer === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
+  }
+  return 'unavailable';
 }
 
 /** Stops listening now and keeps what was heard so far ("I've finished talking"). */
