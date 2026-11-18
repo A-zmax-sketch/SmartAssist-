@@ -94,6 +94,38 @@ export function fasterRate(rate: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Pitch steps
+// ---------------------------------------------------------------------------
+
+/** The pitches the Lower and Higher buttons in Settings step through, lowest first. */
+export const PITCHES = [0.6, 0.8, 1, 1.2, 1.4];
+
+const PITCH_NAMES: Record<number, string> = {
+  0.6: 'Very low',
+  0.8: 'Low',
+  1: 'Normal',
+  1.2: 'High',
+  1.4: 'Very high',
+};
+
+/** What a pitch is called on screen, e.g. describePitch(1) → 'Normal'. */
+export function describePitch(pitch: number): string {
+  return PITCH_NAMES[pitch] ?? `${pitch}×`;
+}
+
+/** The next lower pitch, or the same one if it is already the lowest. */
+export function lowerPitch(pitch: number): number {
+  const lower = PITCHES.filter((step) => step < pitch);
+  return lower.length > 0 ? lower[lower.length - 1] : PITCHES[0];
+}
+
+/** The next higher pitch, or the same one if it is already the highest. */
+export function higherPitch(pitch: number): number {
+  const higher = PITCHES.filter((step) => step > pitch);
+  return higher.length > 0 ? higher[0] : PITCHES[PITCHES.length - 1];
+}
+
+// ---------------------------------------------------------------------------
 // Speaking
 // ---------------------------------------------------------------------------
 
