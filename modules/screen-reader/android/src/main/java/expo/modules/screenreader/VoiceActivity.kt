@@ -37,7 +37,10 @@ sealed class VoiceResult {
  * also asks for any permission the assistant needs (microphone, contacts,
  * SMS, phone), since only a window on screen can ask.
  *
- * High-contrast look: black card, yellow border, 26 sp words, a 64 dp Cancel button.
+ * High-contrast look: black card, yellow border, 26 sp words, 64 dp buttons.
+ *
+ * Before sending a message or making a call it also shows the question, with
+ * Yes and No buttons: the user can answer out loud or tap.
  */
 class VoiceActivity : Activity() {
   private var recognizer: SpeechRecognizer? = null
@@ -47,7 +50,7 @@ class VoiceActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     isOpen = true
-    setContentView(buildCard(intent.getStringExtra(EXTRA_PROMPT) ?: ""))
+    setContentView(buildCard(intent.getStringExtra(EXTRA_PROMPT) ?: "", intent.getStringExtra(EXTRA_QUESTION)))
 
     val permissions = intent.getStringArrayExtra(EXTRA_PERMISSIONS)
     if (permissions != null) {
@@ -127,7 +130,8 @@ class VoiceActivity : Activity() {
     super.onDestroy()
   }
 
-  private fun buildCard(prompt: String): LinearLayout {
+  /** `question` set: a yes-or-no question, shown with Yes and No buttons instead of Cancel. */
+  private fun buildCard(prompt: String, question: String?): LinearLayout {
     val yellow = Color.parseColor(FloatingControls.YELLOW)
     val card = LinearLayout(this).apply {
       orientation = LinearLayout.VERTICAL
@@ -138,28 +142,24 @@ class VoiceActivity : Activity() {
         setStroke(dp(3), yellow)
       }
     }
+    if (question != null) card.addView(text(question, 26f, Color.WHITE, bold = true))
     card.addView(text(prompt.ifEmpty { "Listening…" }, 30f, yellow, bold = true))
     heardText = text("", 26f, Color.WHITE, bold = false)
     card.addView(heardText)
-    card.addView(
-      Button(this).apply {
-        text = "Cancel"
-        contentDescription = "Cancel"
-        isAllCaps = false
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-        setTypeface(typeface, Typeface.BOLD)
-        setTextColor(Color.BLACK)
-        minHeight = dp(64)
-        minimumHeight = dp(64)
-        background = GradientDrawable().apply {
-          setColor(yellow)
-          cornerRadius = dp(16).toFloat()
-        }
-        setOnClickListener { deliver(VoiceResult.Cancelled) }
-        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-          .apply { topMargin = dp(16) }
-      },
-    )
+
+    val buttons = LinearLayout(this).apply {
+      orientation = LinearLayout.HORIZONTAL
+      layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        .apply { topMargin = dp(16) }
+    }
+    if (question != null) {
+      // Tapping counts the same as saying it. Yes on the left and No in red, as on every screen.
+      buttons.addView(button("Yes", yellow, Color.BLACK) { deliver(VoiceResult.Heard("yes")) })
+      buttons.addView(button("No", Color.parseColor(NO_RED), Color.WHITE, gapBefore = true) { deliver(VoiceResult.Heard("no")) })
+    } else {
+      buttons.addView(button("Cancel", yellow, Color.BLACK) { deliver(VoiceResult.Cancelled) })
+    }
+    card.addView(buttons)
     // The card sits at the bottom of the screen, over a dimmed version of the app.
     return LinearLayout(this).apply {
       gravity = Gravity.BOTTOM
@@ -168,6 +168,26 @@ class VoiceActivity : Activity() {
       addView(card, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
   }
+
+  /** A big, easy-to-hit button that shares the row equally with the others. */
+  private fun button(label: String, fill: Int, textColor: Int, gapBefore: Boolean = false, onPress: () -> Unit) =
+    Button(this).apply {
+      text = label
+      contentDescription = label
+      isAllCaps = false
+      setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+      setTypeface(typeface, Typeface.BOLD)
+      setTextColor(textColor)
+      minHeight = dp(64)
+      minimumHeight = dp(64)
+      background = GradientDrawable().apply {
+        setColor(fill)
+        cornerRadius = dp(16).toFloat()
+      }
+      setOnClickListener { onPress() }
+      layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        .apply { if (gapBefore) marginStart = dp(12) }
+    }
 
   private fun text(words: String, sizeSp: Float, color: Int, bold: Boolean) = TextView(this).apply {
     text = words
@@ -183,6 +203,9 @@ class VoiceActivity : Activity() {
   companion object {
     private const val LOG_TAG = "SmartAssistReader"
     private const val EXTRA_PROMPT = "prompt"
+    private const val EXTRA_QUESTION = "question"
+    /** The app's red for "No" and "Stop" (white text on it is 6.5 : 1). */
+    private const val NO_RED = "#B3261E"
 
     /** True while the card is on screen, so the floating buttons stay out of its way. */
     var isOpen = false
@@ -197,6 +220,17 @@ class VoiceActivity : Activity() {
     /** Shows the card and listens. `prompt` is the big line, e.g. "Say yes or no." */
     fun listen(context: Context, prompt: String, onResult: (VoiceResult) -> Unit) =
       open(context, Intent(context, VoiceActivity::class.java).putExtra(EXTRA_PROMPT, prompt), onResult)
+
+    /**
+     * Shows `question` with Yes and No buttons and listens for the answer.
+     * A tap arrives as Heard("yes") or Heard("no"), the same as saying it.
+     */
+    fun askYesOrNo(context: Context, question: String, prompt: String, onResult: (VoiceResult) -> Unit) =
+      open(
+        context,
+        Intent(context, VoiceActivity::class.java).putExtra(EXTRA_PROMPT, prompt).putExtra(EXTRA_QUESTION, question),
+        onResult,
+      )
 
     /** Shows the card only to ask for permissions. Heard("granted") means all were allowed. */
     fun askPermissions(context: Context, prompt: String, permissions: Array<String>, onResult: (VoiceResult) -> Unit) =

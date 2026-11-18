@@ -173,12 +173,13 @@ class VoiceAssistant(
   }
 
   /**
-   * Asks a yes-or-no question out loud, then listens for the answer.
-   * Anything but a clear "yes" counts as no, so nothing is sent by mistake.
+   * Asks a yes-or-no question out loud, then shows it with Yes and No buttons
+   * and listens for the answer. Anything but a clear "yes" counts as no, so
+   * nothing is sent by mistake.
    */
   private fun confirm(question: String, then: (Boolean) -> Unit) {
     say(question) {
-      VoiceActivity.listen(service, commands.reply("confirmListening")) { result ->
+      VoiceActivity.askYesOrNo(service, question, commands.reply("confirmListening")) { result ->
         val answer = (result as? VoiceResult.Heard)?.let { commands.yesOrNo(it.text) }
         Log.i(LOG_TAG, "Answer: $result → $answer")
         then(answer == "yes")
